@@ -14,6 +14,9 @@ function one(msg, idx) {
     msg.thread ? `thread=${msg.thread}` : null,
     `at=${msg.ts}`,
     msg.host ? `host=${msg.host}` : null,
+    // wersja nadawcy nalezy do naglowka, a nie tylko do mq_peers - to od niej
+    // zalezy, co wolno zalozyc o mozliwosciach drugiej strony
+    `app=${msg.app ?? 'sprzed 0.1.2'}`,
   ].filter(Boolean).join(' ');
   return `<mq-message idx="${idx}" ${head}>\n${String(msg.text ?? '').trim()}\n</mq-message>`;
 }

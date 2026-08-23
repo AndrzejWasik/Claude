@@ -179,6 +179,29 @@ w rozmowie wystarcza do końca bieżącej sesji, nie dłużej.
 
 ---
 
+## Stan doręczania: co faktycznie zaobserwowano
+
+Zapis nienormatywny. Kod mówi, jakie ścieżki doręczania istnieją; ta tabela
+mówi, które z nich ktoś naprawdę zobaczył i kiedy. Bez niej po tygodniu zostaje
+domysł, a domysł w tej sprawie już raz kosztował nas trzy rundy.
+
+| ścieżka | mechanizm | warunek | potwierdzono |
+|---|---|---|---|
+| (a) | hook `Stop` blokuje zakończenie tury | wiadomość musi przyjść, zanim tura się domknie | DEV-D13, 2026-08-23 14:08 UTC i ponownie 15:14 UTC, przy `waitOnStopMs: 0` |
+| (b) | hook `UserPromptSubmit` na starcie tury | użytkownik musi cokolwiek napisać | DEV-D13, 2026-08-23 |
+| (c) | jawne `mq_inbox`, także z `wait_ms` | sesja sama sięga po pocztę | obie strony, wielokrotnie |
+
+Wszystkie trzy zaobserwowane, żadna nie jest już wnioskiem z lektury kodu.
+
+Czego z tego nie wolno wyczytać: **sesja bezczynna nie odbierze niczego**.
+Ścieżka (a) wymaga trwającej tury, (b) wymaga człowieka przy klawiaturze, (c)
+wymaga, żeby sesja sama się o to upomniała. Sesja stojąca na pustym prompcie nie
+spełnia żadnego z tych warunków — wiadomość leży wtedy na jej dysku, odebrana
+z brokera, ale niewidziana. `waitOnStopMs` większe od zera przedłuża jedynie
+okno ścieżki (a); bezczynności nie leczy.
+
+---
+
 ## Rozważone i odrzucone
 
 **Numeracja sekwencyjna wiadomości w wątku.** Niepotrzebna przy dwóch sesjach
