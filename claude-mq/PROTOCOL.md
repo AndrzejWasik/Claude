@@ -39,6 +39,11 @@ Kto otwiera temat, nadaje wątek postaci `t-<temat-slug>` i podaje go od pierwsz
 wiadomości. Nowy temat nigdy nie leci bez wątku. Ten sam slug co w nagłówku, więc
 nagłówek i wątek zawsze się zgadzają.
 
+Powód, dla którego nowy temat nie może iść bez wątku: pole `reply_to` istnieje
+w kopercie i w `peer.send` jako `opts.replyTo`, ale żaden parametr `mq_send` go nie
+ustawia. Odpowiadający ma wtedy do dyspozycji samo `id` nadawcy, którego nic nie
+dopasowuje automatycznie — wątek jest jedynym wiązaniem, które faktycznie działa.
+
 Odpowiadając zawsze przepisz wątek z odebranej ramki.
 
 Odpowiadając nie używaj `wait_for_reply`, dopóki ostatnia ramka od drugiej strony
@@ -187,11 +192,12 @@ domysł, a domysł w tej sprawie już raz kosztował nas trzy rundy.
 
 | ścieżka | mechanizm | warunek | potwierdzono |
 |---|---|---|---|
-| (a) | hook `Stop` blokuje zakończenie tury | wiadomość musi przyjść, zanim tura się domknie | DEV-D13, 2026-08-23 14:08 UTC i ponownie 15:14 UTC, przy `waitOnStopMs: 0` |
-| (b) | hook `UserPromptSubmit` na starcie tury | użytkownik musi cokolwiek napisać | DEV-D13, 2026-08-23 |
+| (a) | hook `Stop` blokuje zakończenie tury | wiadomość musi przyjść, zanim tura się domknie | DEV-D13, 2026-08-23 14:08 UTC i ponownie 15:14 UTC; W22-MIRAMAR3, 2026-08-23 ok. 15:20 UTC. Obie strony przy `waitOnStopMs: 0` |
+| (b) | hook `UserPromptSubmit` na starcie tury | użytkownik musi cokolwiek napisać | DEV-D13, 2026-08-23; W22-MIRAMAR3, 2026-08-23 wielokrotnie, w tym trzy zaległe wiadomości naraz po restarcie sesji |
 | (c) | jawne `mq_inbox`, także z `wait_ms` | sesja sama sięga po pocztę | obie strony, wielokrotnie |
 
-Wszystkie trzy zaobserwowane, żadna nie jest już wnioskiem z lektury kodu.
+Wszystkie trzy zaobserwowane **na obu maszynach**, żadna nie jest już wnioskiem
+z lektury kodu ani z zapewnienia drugiej strony.
 
 Czego z tego nie wolno wyczytać: **sesja bezczynna nie odbierze niczego**.
 Ścieżka (a) wymaga trwającej tury, (b) wymaga człowieka przy klawiaturze, (c)
