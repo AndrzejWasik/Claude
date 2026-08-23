@@ -1,0 +1,13 @@
+{
+  "name": "miramar-local",
+  "owner": {
+    "name": "Miramar"
+  },
+  "plugins": [
+    {
+      "name": "claude-mq",
+      "source": "./",
+      "description": "Wymiana wiadomosci miedzy sesjami Claude Code na roznych maszynach przez RabbitMQ (STOMP)"
+    }
+  ]
+}

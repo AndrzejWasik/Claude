@@ -1,0 +1,4 @@
+node_modules/
+*.bak-claude-mq
+dist/
+broker.json
