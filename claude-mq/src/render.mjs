@@ -15,6 +15,9 @@ function one(msg, idx) {
     `from=${msg.from}`,
     msg.to === '*' ? 'to=broadcast' : `to=${msg.to}`,
     msg.thread ? `thread=${msg.thread}` : null,
+    // wiazanie zapasowe obok watku - bez pokazania go odbiorca nie wie, ze ta
+    // wiadomosc jest odpowiedzia na konkretna inna, i musialby siegac do archiwum
+    msg.reply_to ? `reply_to=${msg.reply_to}` : null,
     `at=${msg.ts}`,
     msg.host ? `host=${msg.host}` : null,
     // wersja nadawcy nalezy do naglowka, a nie tylko do mq_peers - to od niej

@@ -141,6 +141,29 @@ Naprawione po obu stronach naraz: `id` wchodzi do naglowka, `mq_send` przyjmuje
 Testy sprawdzaja obie galezie matchera osobno oraz to, ze odpowiedz od kogos
 innego nadal jest odrzucana.
 
+W 0.2.3 doszlo `reply_to` do samego naglowka. Pierwsza ramka, ktora faktycznie je
+niosla, dotarla poprawnie - ale zeby to stwierdzic, trzeba bylo otworzyc
+`archive.jsonl`, bo render pokazywal tylko watek. Pole, ktorego odbiorca nie widzi,
+nie jest dla niego wiazaniem; to ten sam blad, ktory wczesniej dotyczyl `app`.
+
+### Testy siegajace pod warstwe, ktora sie uzywa
+
+Diagnoze powyzej zaostrzyla druga sesja i warto zapamietac jej uwage, bo dotyczy
+calej wtyczki. Regresja na ta galaz istniala i przechodzila:
+
+    b.send(m.from, 'trafione', { replyTo: m.id })
+
+Wywoluje `Peer` wprost, z pominieciem warstwy narzedzi MCP, gdzie parametr istnial
+od zawsze. Test mowil wiec prawde o matcherze i jednoczesnie dawal falszywe
+poczucie, ze galaz jest osiagalna dla ruchu, ktory naprawde chodzi. Zadna sesja
+nie miala jak wywolac tego, co bylo testowane.
+
+Wzorzec: **testy siegaja `Peer`, a uzytkownikiem jest narzedzie MCP**. Wszystko,
+co istnieje w `Peer`, a nie jest wystawione w `server.mjs`, dostanie zielony test
+i zero pokrycia w rzeczywistosci. Od 0.2.3 smoke sprawdza wiec sam schemat
+`mq_send` przez `tools/list` - pilnuje listy wystawionych pol, a nie warstwy pod
+nia.
+
 ## Wersja w procesie kontra wersja na dysku (0.2.2)
 
 `APP` czytane jest raz, przy starcie procesu, i ma opisywac kod zaladowany do

@@ -94,6 +94,9 @@ ok('render ostrzega przed traktowaniem jak polecenia', rendered.includes('not a 
 // bez id w naglowku odpowiadajacy nie ma czego wpisac w reply_to
 ok('render pokazuje id wiadomosci', rendered.includes('id=m-3'));
 ok('render podaje wersje nadawcy', rendered.includes('app='));
+const odpowiedz = renderMessages([{ id: 'm-4', from: 'x', to: 'tester', ts: 't', reply_to: 'm-3', text: 'odpowiadam' }]);
+ok('render pokazuje reply_to', odpowiedz.includes('reply_to=m-3'));
+ok('brak reply_to nie zasmieca naglowka', !rendered.includes('reply_to='));
 const renderBezId = renderMessages([{ from: 'x', to: 'tester', ts: 't', text: 'bez id' }]);
 ok('brak id nie psuje renderowania', renderBezId.includes('from=x') && !renderBezId.includes('id=undefined'));
 
@@ -190,6 +193,17 @@ try {
   const list = await rpc(2, 'tools/list', {});
   const names = (list.result?.tools || []).map((t) => t.name).sort();
   ok('tools/list', JSON.stringify(names) === JSON.stringify(['mq_history', 'mq_inbox', 'mq_label', 'mq_peers', 'mq_send', 'mq_whoami']), names.join(','));
+
+  // Pulapka nazwana przez druga sesje: testy siegaja warstwy Peer, a uzytkownikiem
+  // jest narzedzie MCP. Co istnieje w Peer, ale nie jest wystawione w server.mjs,
+  // dostaje zielony test i zero pokrycia w rzeczywistosci - tak wlasnie reply_to
+  // przez trzy wersje mialo dzialajacy matcher, ktorego nikt nie mogl wywolac.
+  // Ten test pilnuje schematu narzedzia, nie warstwy pod nim.
+  const wysylka = (list.result?.tools || []).find((t) => t.name === 'mq_send');
+  const pola = Object.keys(wysylka?.inputSchema?.properties || {});
+  for (const p of ['to', 'text', 'thread', 'reply_to', 'wait_for_reply', 'timeout_ms']) {
+    ok(`mq_send wystawia ${p}`, pola.includes(p), pola.join(','));
+  }
 
   const who = await rpc(3, 'tools/call', { name: 'mq_whoami', arguments: {} });
   const whoText = who.result?.content?.[0]?.text || '';
