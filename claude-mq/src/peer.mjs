@@ -106,9 +106,9 @@ export class Peer {
    * kontynuuje istniejacy, zeby dalo sie czekac na odpowiedz w toczacej sie
    * rozmowie, a nie tylko zaczynac nowa.
    */
-  async ask(to, text, timeoutMs = 120000, thread = null) {
+  async ask(to, text, timeoutMs = 120000, thread = null, replyTo = null) {
     const t = thread || `t-${randomUUID().slice(0, 8)}`;
-    const sent = this.send(to, text, { thread: t });
+    const sent = this.send(to, text, { thread: t, replyTo });
     return new Promise((resolve) => {
       const waiter = {
         // watek albo jawne wskazanie na te wiadomosc - odpowiadajacy moze trafic

@@ -8,15 +8,28 @@ import { Stomp } from './stomp.mjs';
 
 const RETRY_MS = [1000, 2000, 5000, 10000, 30000];
 
-// wersja wtyczki jedzie w kazdej kopercie - bez tego nie da sie odroznic
-// rozmowcy z poprawka od rozmowcy sprzed niej, a serwer zyje tyle co sesja
-export const APP = (() => {
+const PKG = join(dirname(dirname(fileURLToPath(import.meta.url))), 'package.json');
+
+function readVersion() {
   try {
-    return JSON.parse(readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), 'package.json'), 'utf8')).version;
+    return JSON.parse(readFileSync(PKG, 'utf8')).version;
   } catch {
     return 'nieznana';
   }
-})();
+}
+
+// wersja wtyczki jedzie w kazdej kopercie - bez tego nie da sie odroznic
+// rozmowcy z poprawka od rozmowcy sprzed niej, a serwer zyje tyle co sesja.
+// Czytana raz, przy starcie procesu: ma opisywac kod zaladowany do pamieci.
+export const APP = readVersion();
+
+// Wersja lezaca na dysku w tej chwili. Rozna od APP znaczy, ze paczke
+// zaktualizowano bez restartu sesji - a wtedy hooki juz chodza na nowym kodzie
+// (kazde zdarzenie to nowy proces), serwer MCP jeszcze na starym. Ten sam host
+// potrafi wtedy renderowac roznie w zaleznosci od drogi doreczenia.
+export function diskVersion() {
+  return readVersion();
+}
 
 export function envelope(fields) {
   return {

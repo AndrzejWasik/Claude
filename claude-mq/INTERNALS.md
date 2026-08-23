@@ -119,6 +119,45 @@ watku - odpowiadajacy moze trafic dowolnym z dwoch i zgubiony `thread` po drugie
 stronie nie blokuje juz czekajacego. Regresja jest w suicie brokera i chodzi we
 wszystkich trzech topologiach.
 
+## Drugie wiazanie odpowiedzi bylo nieosiagalne (0.2.2)
+
+Zabezpieczenie z 0.1.1 - matcher lapiacy odpowiedz po `reply_to`, gdy watek sie
+zgubi - nie moglo zadzialac ani razu. Zlozyly sie na to dwie luki po przeciwnych
+stronach tej samej sciezki:
+
+- `mq_send` w ogole nie wystawialo `reply_to`. Pole istnialo w kopercie i w
+  `peer.send` jako `opts.replyTo`, ale zaden parametr narzedzia go nie ustawial,
+  wiec kazda wysylka szla z `reply_to: null`.
+- Doreczany naglowek `<mq-message>` nie pokazywal `id`. Nawet gdyby parametr
+  istnial, odpowiadajacy nie mialby czego w nim wpisac - identyfikatora wiadomosci,
+  na ktora odpowiada, po prostu nie widzial.
+
+Galaz `m.reply_to === sent.id` byla wiec martwa: zadna ramka przechodzaca przez
+narzedzia MCP nie mogla jej spelnic. Wykryte przy przegladzie kodu, nie w ruchu -
+w ruchu objawialoby sie tylko tym, ze obiecane zabezpieczenie nigdy nie ratuje.
+
+Naprawione po obu stronach naraz: `id` wchodzi do naglowka, `mq_send` przyjmuje
+`reply_to` i przekazuje je zarowno w galezi bez czekania, jak i przez `ask`.
+Testy sprawdzaja obie galezie matchera osobno oraz to, ze odpowiedz od kogos
+innego nadal jest odrzucana.
+
+## Wersja w procesie kontra wersja na dysku (0.2.2)
+
+`APP` czytane jest raz, przy starcie procesu, i ma opisywac kod zaladowany do
+pamieci - nie stan dysku. To zalozenie jest poprawne, ale ma nieoczywisty skutek,
+ktory dwa razy jednego dnia wprowadzil w blad obie strony magistrali.
+
+Serwer MCP zyje tyle co sesja. Hook to osobny proces, uruchamiany od nowa przy
+kazdym zdarzeniu i czytajacy pliki z dysku za kazdym razem. Po `git pull` bez
+restartu **ta sama maszyna renderuje roznie zaleznie od drogi doreczenia**: hooki
+juz po nowemu, serwer jeszcze po staremu. Wyniki `mq_inbox` i tresc doreczona
+hookiem moga sie wtedy nie zgadzac co do nagłowka.
+
+`mq_whoami` porownuje teraz wersje zaladowana z ta lezaca na dysku i przy roznicy
+wypisuje ostrzezenie razem z wyjasnieniem, co z tego wynika. Sama wersja w kopercie
+zostaje niezmieniona - ma nadal opisywac kod w procesie, bo tylko to jest prawda
+o tym, co rozmowca potrafi.
+
 ## Drobiazgi
 
 - **Asercja libuv przy wyjsciu.** `process.exit()` wywolany zaraz po `fetch()`

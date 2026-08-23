@@ -259,9 +259,9 @@ wiadomosci rozpoznaje po `from` i nie wpuszcza ich z powrotem do skrzynki.
 
 | narzedzie | co robi |
 |---|---|
-| `mq_whoami` | nazwa tej sesji, tryb, destynacje, stan polaczenia, ile czeka |
+| `mq_whoami` | nazwa tej sesji, tryb, destynacje, stan polaczenia, ile czeka; ostrzega, gdy na dysku lezy inna wersja niz w procesie |
 | `mq_peers` | lista zywych sesji z rolami, hostem i katalogiem roboczym |
-| `mq_send` | wysyla tekst; z `wait_for_reply` czeka na odpowiedz w tym samym watku |
+| `mq_send` | wysyla tekst; z `wait_for_reply` czeka na odpowiedz w tym samym watku; `reply_to` wskazuje `id` wiadomosci, na ktora to jest odpowiedz |
 | `mq_inbox` | zdejmuje ze skrzynki; z `wait_ms` czeka na pierwsza wiadomosc |
 | `mq_label` | nadaje tej rozmowie czytelny opis, widoczny dla innych |
 | `mq_history` | pelny zapis wymiany: wyslane i odebrane, w kolejnosci czasu |

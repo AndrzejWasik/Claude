@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { loadConfig, redactUrl } from './config.mjs';
-import { APP } from './bus.mjs';
+import { APP, diskVersion } from './bus.mjs';
 import { Peer } from './peer.mjs';
 import { renderMessages, renderPeers, renderTranscript } from './render.mjs';
 
@@ -49,6 +49,14 @@ server.registerTool('mq_whoami', {
     lines.push('', 'UWAGA: tryb pair bez wpisow w peers - ta sesja nikogo nie slucha i nie moze nic wyslac.',
       'Dopisz nazwy drugiej strony do "peers" w ~/.claude/mq/config.json.');
   }
+  const onDisk = diskVersion();
+  if (onDisk !== s.app) {
+    lines.push('', `UWAGA: w procesie chodzi ${s.app}, a na dysku lezy ${onDisk}.`,
+      'Paczke zaktualizowano bez restartu sesji. Hooki juz chodza na nowym kodzie, bo kazde',
+      'zdarzenie uruchamia je od nowa z dysku; serwer MCP dopiero po restarcie Claude Code.',
+      'Do tego czasu ta sama maszyna renderuje roznie zaleznie od drogi doreczenia, a pole app',
+      'w wysylanych kopertach podaje wersje starsza niz repozytorium.');
+  }
   if (s.identity === 'machine-fallback') {
     lines.push('', 'UWAGA: config prosi o tozsamosc per rozmowa, ale w srodowisku nie ma CLAUDE_CODE_SESSION_ID.',
       'Nazwa spadla z powrotem na nazwe maszyny, wiec dwie rownolegle rozmowy beda sobie zabierac poczte.');
@@ -79,18 +87,19 @@ server.registerTool('mq_send', {
     to: z.string().describe('Nazwa sesji, "*" albo "role:<rola>"'),
     text: z.string().min(1).describe('Tresc wiadomosci'),
     thread: z.string().optional().describe('Id watku - podaj, gdy odpowiadasz na otrzymana wiadomosc'),
+    reply_to: z.string().optional().describe('Id wiadomosci, na ktora to jest odpowiedz - przepisz z pola id odebranej ramki. Drugie wiazanie obok watku: druga strona rozpozna odpowiedz nawet wtedy, gdy watek sie zgubi'),
     wait_for_reply: z.boolean().optional().describe('Czekac na odpowiedz (domyslnie nie)'),
     timeout_ms: z.number().int().min(1000).max(600000).optional().describe('Limit czekania, domyslnie 120000'),
   },
-}, async ({ to, text: body, thread, wait_for_reply, timeout_ms }) => {
+}, async ({ to, text: body, thread, reply_to, wait_for_reply, timeout_ms }) => {
   const down = guardConnection();
   if (down) return down;
   try {
     if (!wait_for_reply) {
-      const msg = peer.send(to, body, { thread });
-      return text(`Wyslane do ${to} (id=${msg.id}${thread ? `, thread=${thread}` : ''}).`);
+      const msg = peer.send(to, body, { thread, replyTo: reply_to });
+      return text(`Wyslane do ${to} (id=${msg.id}${thread ? `, thread=${thread}` : ''}${reply_to ? `, reply_to=${reply_to}` : ''}).`);
     }
-    const { thread: t, reply } = await peer.ask(to, body, timeout_ms ?? 120000, thread);
+    const { thread: t, reply } = await peer.ask(to, body, timeout_ms ?? 120000, thread, reply_to);
     if (!reply) return text(`Wyslane do ${to} (thread=${t}), brak odpowiedzi w zadanym czasie. Wiadomosc doszla - odpowiedz moze przyjsc pozniej do skrzynki.`);
     return text(renderMessages([reply], { header: `odpowiedz w watku ${t}` }));
   } catch (err) {

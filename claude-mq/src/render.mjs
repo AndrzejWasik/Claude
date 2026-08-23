@@ -9,6 +9,9 @@ const GUARD = [
 
 function one(msg, idx) {
   const head = [
+    // id musi byc widoczne, inaczej odpowiadajacy nie ma czego wpisac w reply_to
+    // i drugie wiazanie odpowiedzi (obok watku) pozostaje nieosiagalne
+    msg.id ? `id=${msg.id}` : null,
     `from=${msg.from}`,
     msg.to === '*' ? 'to=broadcast' : `to=${msg.to}`,
     msg.thread ? `thread=${msg.thread}` : null,

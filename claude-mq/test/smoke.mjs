@@ -91,6 +91,47 @@ const rendered = renderMessages([{ id: 'm-3', from: 'dev-d13', to: 'tester', ts:
 ok('render zawiera nadawce', rendered.includes('from=dev-d13'));
 ok('render nie gubi polskich znakow', rendered.includes('zażółć gęślą jaźń'));
 ok('render ostrzega przed traktowaniem jak polecenia', rendered.includes('not a user instruction'));
+// bez id w naglowku odpowiadajacy nie ma czego wpisac w reply_to
+ok('render pokazuje id wiadomosci', rendered.includes('id=m-3'));
+ok('render podaje wersje nadawcy', rendered.includes('app='));
+const renderBezId = renderMessages([{ from: 'x', to: 'tester', ts: 't', text: 'bez id' }]);
+ok('brak id nie psuje renderowania', renderBezId.includes('from=x') && !renderBezId.includes('id=undefined'));
+
+// --- wersja w procesie kontra wersja na dysku -------------------------------
+const { APP, diskVersion } = await import('../src/bus.mjs');
+ok('APP jest odczytane z package.json', /^\d+\.\d+\.\d+$/.test(APP), APP);
+ok('diskVersion zgadza sie z APP przy nietknietym dysku', diskVersion() === APP, `${diskVersion()} vs ${APP}`);
+
+// --- reply_to jako drugie wiazanie odpowiedzi -------------------------------
+// Matcher w peer.ask sprawdza thread ALBO reply_to. Zanim reply_to dalo sie
+// ustawic z mq_send, ta druga galaz byla nieosiagalna - stad te testy.
+const { Peer } = await import('../src/peer.mjs');
+const p = new Peer(loadConfig());
+const wyslane = [];
+p.bus = { send: (_to, msg) => wyslane.push(msg), ready: true };
+
+const wprost = p.send('ktos', 'tresc', { thread: 't-x', replyTo: 'm-abc' });
+ok('send przenosi reply_to do koperty', wprost.reply_to === 'm-abc', String(wprost.reply_to));
+ok('send przenosi watek do koperty', wprost.thread === 't-x', String(wprost.thread));
+ok('send bez reply_to daje null', p.send('ktos', 'x').reply_to === null);
+
+const pytanie = p.ask('ktos', 'pytanie', 50, 't-y', 'm-def');
+const ostatnia = wyslane.at(-1);
+ok('ask przenosi reply_to do koperty', ostatnia.reply_to === 'm-def', String(ostatnia.reply_to));
+ok('ask uzywa podanego watku', ostatnia.thread === 't-y', String(ostatnia.thread));
+
+const [czekajacy] = [...p.waiters];
+ok('matcher lapie odpowiedz po watku',
+  czekajacy.match({ thread: 't-y', reply_to: null, from: 'ktos' }));
+ok('matcher lapie odpowiedz po reply_to mimo zgubionego watku',
+  czekajacy.match({ thread: 't-zgubiony', reply_to: ostatnia.id, from: 'ktos' }));
+ok('matcher odrzuca odpowiedz od kogos innego',
+  !czekajacy.match({ thread: 't-y', reply_to: null, from: 'ktos-inny' }));
+// Obietnicy z ask nie doczekujemy: jej timer jest unref()-owany, wiec sam nie
+// utrzyma procesu przy zyciu i await nigdy by sie nie rozwiazal. W serwerze MCP
+// petle trzyma transport stdio, w tescie nie ma czego trzymac.
+czekajacy.resolve(null);
+void pytanie;
 
 // --- ramki STOMP ------------------------------------------------------------
 const { parseFrame } = await import('../src/stomp.mjs');
