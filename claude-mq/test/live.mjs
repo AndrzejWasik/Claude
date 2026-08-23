@@ -63,7 +63,7 @@ try {
 
   const list = await rpc(2, 'tools/list', {});
   const names = (list.result?.tools || []).map((t) => t.name);
-  say('narzedzia zgloszone', names.length === 5, names.join(', '));
+  say('narzedzia zgloszone', names.length >= 5 && names.includes('mq_send') && names.includes('mq_inbox'), names.join(', '));
 
   const who = await rpc(3, 'tools/call', { name: 'mq_whoami', arguments: {} });
   const txt = who.result?.content?.[0]?.text || '';
