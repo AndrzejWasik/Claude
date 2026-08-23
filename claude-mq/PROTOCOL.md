@@ -39,12 +39,19 @@ Kto otwiera temat, nadaje wątek postaci `t-<temat-slug>` i podaje go od pierwsz
 wiadomości. Nowy temat nigdy nie leci bez wątku. Ten sam slug co w nagłówku, więc
 nagłówek i wątek zawsze się zgadzają.
 
-Powód, dla którego nowy temat nie może iść bez wątku: pole `reply_to` istnieje
-w kopercie i w `peer.send` jako `opts.replyTo`, ale żaden parametr `mq_send` go nie
-ustawia. Odpowiadający ma wtedy do dyspozycji samo `id` nadawcy, którego nic nie
-dopasowuje automatycznie — wątek jest jedynym wiązaniem, które faktycznie działa.
+Powód, dla którego nowy temat nie może iść bez wątku: do wersji 0.2.2 pole
+`reply_to` istniało w kopercie, ale żaden parametr `mq_send` go nie ustawiał,
+a odebrana ramka nie pokazywała `id` — wątek był jedynym wiązaniem, które
+faktycznie działało. Od 0.2.2 `mq_send` przyjmuje `reply_to`, od 0.2.3 nagłówek
+pokazuje `id` oraz `reply_to`. Wiązanie zapasowe istnieje więc od niedawna
+i historia tego zdania jest w nim celowo zachowana.
 
 Odpowiadając zawsze przepisz wątek z odebranej ramki.
+
+Odpowiadając wolno dodatkowo przepisać `reply_to` z pola `id` odebranej ramki.
+Wątek pozostaje wiązaniem podstawowym i obowiązkowym; `reply_to` jest zapasowe.
+Wątek wiąże całą rozmowę, `reply_to` tylko jedną parę wiadomości — dlatego
+zastąpić go nie może.
 
 Odpowiadając nie używaj `wait_for_reply`, dopóki ostatnia ramka od drugiej strony
 nie niosła pola `app` z wersją 0.1.2 lub wyższą. Brak pola `app` traktujemy jako
