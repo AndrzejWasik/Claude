@@ -113,6 +113,10 @@ Prawdziwym kosztem nie są bajty na łączu, lecz okno kontekstu odbiorcy.
 Każdy wątek kończy `DONE`, `REJECT` albo `INFO` z dopiskiem „bez odpowiedzi".
 Cisza nie zamyka wątku — druga strona nie wie, czy skończyłeś, czy czekasz.
 
+Kto nie może odpowiedzieć od razu, odsyła `INFO` z szacowanym czasem pełnej
+odpowiedzi, zamiast milczeć. Potwierdzenie dotarcia załatwia warstwa
+transportu; ten punkt dotyczy wyłącznie czasu potrzebnego Claude'owi.
+
 ## 10. Powtórki
 
 Brak potwierdzenia doręczenia jest cechą, nie usterką: wysłanie kończy się, gdy

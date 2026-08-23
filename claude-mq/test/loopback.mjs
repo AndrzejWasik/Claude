@@ -106,6 +106,16 @@ async function scenario(mode, queueNaming = 'sender') {
     ok('tresc mimo to czeka u odbiorcy', b.spool.peek().length === 1);
     await b.inbox({});
 
+    // typ, ktorego ta wersja nie zna, nie moze wpasc do skrzynki jako pusta
+    // wiadomosc - tak wygladalby ack dla strony sprzed 0.3.0
+    const nieznane = [];
+    b.bus.on('unknownType', (m) => nieznane.push(m));
+    a.bus.send('loop-b', { v: 1, type: 'cos-z-przyszlosci', id: 'm-przyszlosc', from: 'loop-a', to: 'loop-b', ts: 'x' });
+    await settle();
+    ok('nieznany typ nie trafia do skrzynki', b.spool.peek().length === 0, JSON.stringify(b.spool.peek()));
+    ok('nieznany typ jest zglaszany osobno', nieznane.length === 1 && nieznane[0].type === 'cos-z-przyszlosci', JSON.stringify(nieznane));
+    b.bus.removeAllListeners('unknownType');
+
     // nieznana sesja nie potwierdzi - nadawca ma sie o tym dowiedziec
     const wPustke = a.send('nikt-taki', 'bez odbiorcy');
     ok('brak potwierdzenia od nieistniejacej sesji', (await a.awaitAck(wPustke.id, 1500)) === null);

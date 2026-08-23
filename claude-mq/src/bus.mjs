@@ -167,6 +167,10 @@ export class Bus extends EventEmitter {
     // potwierdzenie odbioru nie jest tresc dla rozmowy - nie trafia ani do
     // skrzynki, ani do kontekstu; interesuje wylacznie nadawce
     if (msg.type === 'ack') { this.emit('ack', msg); return; }
+    // Do rozmowy wpuszczamy wylacznie to, co jest tresc. Kazdy typ dolozony
+    // w przyszlosci trafilby inaczej do skrzynki jako wiadomosc bez tekstu -
+    // dokladnie to zrobilyby ramki ack stronie sprzed 0.3.0.
+    if (msg.type !== 'msg') { this.emit('unknownType', msg); return; }
     if (!this.#forMe(msg)) return;
     this.emit('message', msg);
   }
