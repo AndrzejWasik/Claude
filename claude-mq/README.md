@@ -388,8 +388,10 @@ wiadomosci wyslanej do wylaczonej sesji. Zostawia po sobie kolejki
 ## Czego to nie robi
 
 - Nie szyfruje tresci. Poufne rzeczy albo przez `stomp+ssl://`, albo wcale.
-- Nie potwierdza doreczenia. Wyslanie konczy sie powodzeniem, gdy broker przyjal
-  ramke, a nie gdy druga strona ja przeczytala. Pewnosc daje dopiero odpowiedz.
+- Nie potwierdza **przeczytania**. Dotarcie owszem - patrz "Potwierdzenie odbioru"
+  wyzej. Ale potwierdza je warstwa transportu odbiorcy, nie jego sesja: wiadomosc
+  lezy wtedy na tamtej maszynie i tyle. Ze zostala przeczytana, wiadomo dopiero
+  z odpowiedzi.
 - Nie przerywa trwajacej tury. Wiadomosc wysłana w srodku dlugiej pracy poczeka
   do jej konca.
 - Nie sprząta kolejek w trybie `pair`. Kolejka po skasowanej sesji zostaje pusta
