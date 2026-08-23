@@ -85,6 +85,8 @@ Jeden plik na maszyne: `~/.claude/mq/config.json`. Szkielet wypisze
 | `deliverOnStop` | doreczanie zamiast zakonczenia tury, gdy cos przyszlo |
 | `waitOnStopMs` | ile czekac na poczte przed zakonczeniem tury (0 = nie czekac, max 115000) |
 | `maxDeliveredPerTurn` | ile wiadomosci naraz wpuscic do rozmowy; reszta czeka |
+| `autoAck` | potwierdzaj odbior natychmiast po odebraniu ramki (domyslnie tak) |
+| `ackWaitMs` | ile `mq_send` czeka na to potwierdzenie, zanim odpowie |
 
 Kazdy z kluczy `url`, `name`, `roles`, `peers`, `mode` da sie nadpisac zmienna
 srodowiskowa: `CLAUDE_MQ_URL`, `CLAUDE_MQ_NAME`, `CLAUDE_MQ_ROLES`,
@@ -238,7 +240,7 @@ W trybie `pair` dochodzi `persistent: true`.
 | `v` | wersja koperty, obecnie `1` |
 | `app` | wersja wtyczki nadawcy; brak pola = strona sprzed 0.1.2 |
 | `id` | identyfikator wiadomosci |
-| `type` | `msg`, `ping` albo `pong` |
+| `type` | `msg`, `ack`, `ping` albo `pong` |
 | `ts` | czas nadania, ISO 8601 UTC |
 | `from` | nazwa sesji nadawcy |
 | `to` | nazwa odbiorcy, `*` dla wszystkich albo `role:<rola>` |
@@ -246,6 +248,25 @@ W trybie `pair` dochodzi `persistent: true`.
 | `thread` | identyfikator watku; odpowiedz powtarza go bez zmian |
 | `reply_to` | `id` wiadomosci, na ktora to jest odpowiedz |
 | `text` | tresc |
+
+### Potwierdzenie odbioru
+
+Odebranie wiadomosci typu `msg` natychmiast odsyla ramke `ack` z polami
+`ack_of` (identyfikator potwierdzanej wiadomosci), `thread` oraz `pending`
+(ile nieprzeczytanych lezy u odbiorcy razem z ta).
+
+Robi to warstwa transportu, w chwili odebrania ramki - nie sesja i nie jej
+uzytkownik. Nadawca dowiaduje sie wiec, ze wiadomosc dotarla na druga maszyne,
+nie czekajac az tamta sesja wezmie ture. Sesja bezczynna potrafi nie wziac jej
+przez godziny, a wtedy cisza po drugiej stronie nie mowi nic o tym, czy
+cokolwiek doszlo.
+
+Potwierdzenie nie trafia do skrzynki ani do rozmowy - jest tylko dla nadawcy.
+`mq_send` czeka na nie do `ackWaitMs` i melduje wynik w swojej odpowiedzi.
+
+Czego potwierdzenie **nie** znaczy: ze wiadomosc zostala przeczytana. Znaczy
+tylko, ze lezy na tamtej maszynie. Pole `pending` wieksze od jedynki mowi
+wprost, ze sesja zbiera poczte, ale tury nie bierze.
 
 W ramce `pong` zamiast `text` przychodzi `corr` (identyfikator zapytania),
 `roles` i `mode` odpowiadajacej sesji.

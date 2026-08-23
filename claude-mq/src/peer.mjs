@@ -24,18 +24,65 @@ export class Peer {
     this.bus = new Bus(cfg);
     this.waiters = new Set();
     this.pongBuckets = new Map();
+    this.acks = new Map();
+    this.ackWaiters = new Map();
     this.received = 0;
     this.sent = 0;
+  }
+
+  /** Czeka na potwierdzenie odbioru wskazanej wiadomosci. null = nie doszlo. */
+  awaitAck(id, timeoutMs = 8000) {
+    const known = this.acks.get(id);
+    if (known) return Promise.resolve(known);
+    if (timeoutMs <= 0) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      this.ackWaiters.set(id, resolve);
+      const timer = setTimeout(() => { this.ackWaiters.delete(id); resolve(null); }, timeoutMs);
+      timer.unref?.();
+    });
   }
 
   async start() {
     this.bus.on('message', (msg) => this.#onMessage(msg));
     this.bus.on('pong', (msg) => this.pongBuckets.get(msg.corr)?.push(msg));
+    this.bus.on('ack', (a) => this.#onAck(a));
     await this.bus.start();
     return this;
   }
 
+  #onAck(ack) {
+    this.acks.set(ack.ack_of, ack);
+    const waiter = this.ackWaiters.get(ack.ack_of);
+    if (waiter) { this.ackWaiters.delete(ack.ack_of); waiter(ack); }
+  }
+
+  /**
+   * Potwierdza odbior natychmiast, zanim cokolwiek innego sie wydarzy. Nadawca
+   * ma wiedziec, ze wiadomosc dotarla do maszyny, nie czekajac az ta sesja
+   * wezmie ture - a moze jej nie wziac przez godziny.
+   */
+  #ack(msg) {
+    // rezygnacja, nie wlaczenie: brak klucza w konfiguracji nie moze po cichu
+    // wylaczyc potwierdzania, bo o jego braku nikt sie nie dowie
+    if (this.cfg.autoAck === false || msg.type !== 'msg' || !msg.id) return;
+    try {
+      this.bus.sendAck(msg.from, envelope({
+        type: 'ack',
+        from: this.cfg.name,
+        to: msg.from,
+        ack_of: msg.id,
+        thread: msg.thread || null,
+        // ile lezy nieprzeczytanych razem z ta - nadawca widzi, czy trafil
+        // w sesje aktywna, czy do skrzynki, ktorej nikt nie oproznia
+        pending: this.spool.peek().length + 1,
+      }));
+    } catch (err) {
+      this.lastAckError = err.message;
+    }
+  }
+
   #onMessage(msg) {
+    this.#ack(msg);
     this.received += 1;
     this.spool.append(msg);
     for (const w of this.waiters) {

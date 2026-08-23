@@ -25,6 +25,8 @@ const DEFAULTS = {
 
   prefix: 'claude',
   heartbeatMs: 10000,
+  autoAck: true,       // potwierdzaj odbior natychmiast po odebraniu ramki
+  ackWaitMs: 8000,     // ile mq_send czeka na to potwierdzenie, zanim odpowie
   deliverOnPrompt: true,
   deliverOnStop: true,
   waitOnStopMs: 0,

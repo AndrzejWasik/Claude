@@ -1,6 +1,6 @@
 {
   "name": "claude-mq",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Wymiana wiadomosci miedzy sesjami Claude Code na roznych maszynach przez RabbitMQ",
   "keywords": ["rabbitmq", "amqp", "multi-session", "messaging"],
   "mcpServers": {

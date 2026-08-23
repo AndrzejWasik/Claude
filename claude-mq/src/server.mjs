@@ -17,6 +17,21 @@ peer.bus.on('down', (err) => log(`rozlaczony: ${err?.message || 'brak polaczenia
 peer.bus.on('malformed', (raw) => log(`odrzucona ramka: ${raw}`));
 
 const text = (s) => ({ content: [{ type: 'text', text: s }] });
+
+/** Co wiadomo o losie wyslanej wiadomosci - dla nadawcy wazniejsze niz sam fakt wyslania. */
+function describeAck(ack, to) {
+  if (!ack) {
+    return 'Odbior NIEPOTWIERDZONY. Broker przyjal ramke, ale ' + to + ' jej nie potwierdzil. '
+      + 'Najczestszy powod: tamta sesja nie dziala. W trybie pair wiadomosc czeka w kolejce i dojdzie po jej powrocie.';
+  }
+  const czeka = typeof ack.pending === 'number'
+    ? (ack.pending > 1
+      ? ' U odbiorcy czeka ' + ack.pending + ' nieprzeczytanych - sesja zbiera poczte, ale nie bierze tury.'
+      : ' To jedyna nieprzeczytana u odbiorcy.')
+    : '';
+  return 'Odbior potwierdzony przez ' + ack.from + ' o ' + ack.ts + '.' + czeka
+    + ' Potwierdzenie znaczy, ze wiadomosc lezy na tamtej maszynie - nie, ze zostala przeczytana.';
+}
 const fail = (s) => ({ content: [{ type: 'text', text: s }], isError: true });
 
 function guardConnection() {
@@ -97,10 +112,16 @@ server.registerTool('mq_send', {
   try {
     if (!wait_for_reply) {
       const msg = peer.send(to, body, { thread, replyTo: reply_to });
-      return text(`Wyslane do ${to} (id=${msg.id}${thread ? `, thread=${thread}` : ''}${reply_to ? `, reply_to=${reply_to}` : ''}).`);
+      const ack = await peer.awaitAck(msg.id, cfg.ackWaitMs ?? 8000);
+      return text(`Wyslane do ${to} (id=${msg.id}${thread ? `, thread=${thread}` : ''}${reply_to ? `, reply_to=${reply_to}` : ''}).
+${describeAck(ack, to)}`);
     }
-    const { thread: t, reply } = await peer.ask(to, body, timeout_ms ?? 120000, thread, reply_to);
-    if (!reply) return text(`Wyslane do ${to} (thread=${t}), brak odpowiedzi w zadanym czasie. Wiadomosc doszla - odpowiedz moze przyjsc pozniej do skrzynki.`);
+    const { sent, thread: t, reply } = await peer.ask(to, body, timeout_ms ?? 120000, thread, reply_to);
+    if (!reply) {
+      const ack = await peer.awaitAck(sent.id, 0);
+      return text(`Wyslane do ${to} (thread=${t}), brak odpowiedzi w zadanym czasie.
+${describeAck(ack, to)}`);
+    }
     return text(renderMessages([reply], { header: `odpowiedz w watku ${t}` }));
   } catch (err) {
     return fail(`Nie wyslano: ${err.message}`);

@@ -164,8 +164,23 @@ export class Bus extends EventEmitter {
       return;
     }
     if (msg.type === 'pong') { this.emit('pong', msg); return; }
+    // potwierdzenie odbioru nie jest tresc dla rozmowy - nie trafia ani do
+    // skrzynki, ani do kontekstu; interesuje wylacznie nadawce
+    if (msg.type === 'ack') { this.emit('ack', msg); return; }
     if (!this.#forMe(msg)) return;
     this.emit('message', msg);
+  }
+
+  /**
+   * Potwierdzenie odbioru. Nie moze wywrocic odbierania wiadomosci, wiec brak
+   * konfiguracji albo brak polaczenia tylko je pomija - odebrana tresc jest
+   * wazniejsza od potwierdzenia, ze dotarla.
+   */
+  sendAck(to, msg) {
+    if (this.cfg.mode === 'pair' && !this.cfg.peers.length) return false;
+    if (!this.stomp?.connected) return false;
+    for (const dest of this.#routes(to)) this.#publish(dest, msg);
+    return true;
   }
 
   #publish(destination, msg, headers = {}) {

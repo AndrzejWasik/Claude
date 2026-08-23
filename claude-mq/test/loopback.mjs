@@ -93,6 +93,24 @@ async function scenario(mode, queueNaming = 'sender') {
     b.bus.off('message', onReplyTo);
     await b.inbox({});
 
+    // potwierdzenie odbioru ma przyjsc samo, bez udzialu odbierajacej sesji
+    const odebraneNaStarcie = a.received;
+    const potwierdzana = a.send('loop-b', 'czy dotarlo');
+    const ack = await a.awaitAck(potwierdzana.id, 5000);
+    ok('odbior potwierdzony automatycznie', !!ack, JSON.stringify(ack));
+    ok('potwierdzenie wskazuje wlasciwa wiadomosc', ack?.ack_of === potwierdzana.id, ack?.ack_of);
+    ok('potwierdzenie od wlasciwej sesji', ack?.from === 'loop-b', ack?.from);
+    ok('potwierdzenie niesie liczbe nieprzeczytanych', ack?.pending === 1, String(ack?.pending));
+    ok('potwierdzenie nie trafia do skrzynki nadawcy', a.spool.peek().length === 0);
+    ok('potwierdzenie nie zwieksza licznika odebranych', a.received === odebraneNaStarcie, String(a.received));
+    ok('tresc mimo to czeka u odbiorcy', b.spool.peek().length === 1);
+    await b.inbox({});
+
+    // nieznana sesja nie potwierdzi - nadawca ma sie o tym dowiedziec
+    const wPustke = a.send('nikt-taki', 'bez odbiorcy');
+    ok('brak potwierdzenia od nieistniejacej sesji', (await a.awaitAck(wPustke.id, 1500)) === null);
+    await b.inbox({});
+
     setTimeout(() => a.send('loop-b', 'spozniona'), 800);
     const waited = await b.inbox({ waitMs: 6000 });
     ok('inbox z wait_ms lapie spozniona wiadomosc', waited.length === 1 && waited[0].text === 'spozniona', JSON.stringify(waited));
